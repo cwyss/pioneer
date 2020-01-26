@@ -127,6 +127,9 @@ local function displayOrbitInfo()
 	local current_view = Game.CurrentView()
 	if current_view == "world" then
 		local info = getOrbitInfo(player, player.frameBody)
+		if info.name == nil then
+			return
+		end
 		formatOrbitInfo(info)
 		
 		ui.setNextWindowSize(Vector2(width, height), "Always")
