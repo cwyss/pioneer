@@ -77,6 +77,7 @@ local function getOrbitInfo(player, frameBody)
 		info.M = M
 		info.T = T
 	else
+		info.b = p / math.sqrt(e * e - 1)
 		info.t_peri = t_peri
 	end
 	
@@ -110,9 +111,11 @@ local function formatOrbitInfo(info)
 			local val,unit = ui.Format.Distance(info.r_apo)
 			info.r_apo_fmt = val .. " " .. unit
 			info.M_fmt = string.format("%.4f", info.M)
-			info.T_fmt = ui.Format.Duration(info.T)
+			info.T_fmt = ui.Format.Duration(info.T,3)
 		else
-			info.t_peri_fmt = ui.Format.Duration(info.t_peri)
+			local val,unit = ui.Format.Distance(info.b)
+			info.b_fmt = val .. " " .. unit
+			info.t_peri_fmt = ui.Format.Duration(info.t_peri,3)
 		end
 		info.epsilon_fmt = string.format("%.6e", info.epsilon)
 		info.lambda_fmt = string.format("%.6e", info.lambda)
@@ -155,9 +158,17 @@ local function displayOrbitInfo()
 											 ui.text("r")
 											 ui.sameLine()
 											 ui.text(info.r_fmt)
-												 
+
+											 if info.e < 1 then
+												 ui.text("M")
+												 ui.sameLine()
+												 ui.text(info.M_fmt)
+											 else
+												 ui.text("tp")
+												 ui.sameLine()
+												 ui.text(info.t_peri_fmt)
+											 end
 											 ui.text(info.epsilon_fmt)
-											 ui.text(info.lambda_fmt)
 
 											 ui.nextColumn()
 											 ui.text("")
@@ -177,18 +188,16 @@ local function displayOrbitInfo()
 												 ui.text("ap")
 												 ui.sameLine()
 												 ui.text(info.r_apo_fmt)
-												 ui.text("M")
-												 ui.sameLine()
-												 ui.text(info.M_fmt)
 												 ui.text("T")
 												 ui.sameLine()
 												 ui.text(info.T_fmt)
 											 else
-												 ui.text("")
-												 ui.text("tp")
+												 ui.text("b")
 												 ui.sameLine()
-												 ui.text(info.t_peri_fmt)
+												 ui.text(info.b_fmt)
+												 ui.text("")
 											 end
+											 ui.text(info.lambda_fmt)
 						 end)
 		end)
 	end
