@@ -50,6 +50,7 @@ local function getOrbitInfo(player, frameBody)
 	local p = lambda * lambda / mu
 	local e = math.sqrt(1 + 2 * epsilon * p / mu)
 	local a = p / (1 - e * e)
+	local b
 
 	local E,M,T,t_peri
 	if e < 1 then
@@ -59,6 +60,7 @@ local function getOrbitInfo(player, frameBody)
 		end
 		M = E + e * math.sin(E)
 		T = 2 * math.pi * math.sqrt(math.pow(a, 3) / mu)
+		b = p / math.sqrt(1 - e * e)
 	else
 		E = acosh((1 - r / a) / e)
 		if pos:dot(vel) < 0 then
@@ -66,24 +68,37 @@ local function getOrbitInfo(player, frameBody)
 		end
 		M = e * math.sinh(E) - E
 		t_peri = math.sqrt(math.pow(-a, 3) / mu) * M
+		b = p / math.sqrt(e * e - 1)
 	end
 		
 	info.r = r
 	info.a = a
 	info.e = e
 	info.r_peri = p / (1 + e)
-	if e < 1 then
+	info.r_krit = frameBody:GetPhysicalRadius()
+	if info.r_peri <= info.r_krit then
+		info.impact = true
+		local E_imp
+		if e < 1 then
+			E_imp = 2 * math.pi - math.acos((1 - info.r_krit / a) / e)
+			local delta = Vector2(a * (math.cos(E_imp) - math.cos(E)), b * (math.sin(E_imp) - math.sin(E)))
+			info.d_imp = delta:length()
+		else
+			E_imp = - acosh((1 - info.r_krit / a) / e)
+			local delta = Vector2(a * (math.cosh(E_imp) - math.cosh(E)), b * (math.sinh(E_imp) - math.sinh(E)))
+			info.d_imp = delta:length()
+		end
+	elseif e < 1 then
 		info.r_apo = p / (1 - e)
 		info.M = M
 		info.T = T
 	else
-		info.b = p / math.sqrt(e * e - 1)
+		info.b = b
 		info.t_peri = t_peri
 	end
 	
 	info.v1 = math.sqrt(mu / r)
 	info.v2 = math.sqrt(2) * info.v1
-	info.r_krit = frameBody:GetPhysicalRadius()
 	
 	info.mass = path:GetSystemBody().mass
 	info.lambda = lambda
@@ -107,7 +122,10 @@ local function formatOrbitInfo(info)
 		info.e_fmt = string.format("%.6f", info.e)
 		local val,unit = ui.Format.Distance(info.r_peri)
 		info.r_peri_fmt = val .. " " .. unit
-		if info.e < 1 then
+		if info.impact then
+			local val,unit = ui.Format.Distance(info.d_imp)
+			info.d_imp_fmt = val .. " " .. unit
+		elseif info.e < 1 then
 			local val,unit = ui.Format.Distance(info.r_apo)
 			info.r_apo_fmt = val .. " " .. unit
 			info.M_fmt = string.format("%.4f", info.M)
@@ -159,7 +177,11 @@ local function displayOrbitInfo()
 											 ui.sameLine()
 											 ui.text(info.r_fmt)
 
-											 if info.e < 1 then
+											 if info.impact then
+												 ui.text("di")
+												 ui.sameLine()
+												 ui.text(info.d_imp_fmt)
+											 elseif info.e < 1 then
 												 ui.text("M")
 												 ui.sameLine()
 												 ui.text(info.M_fmt)
@@ -171,7 +193,11 @@ local function displayOrbitInfo()
 											 ui.text(info.epsilon_fmt)
 
 											 ui.nextColumn()
-											 ui.text("")
+											 if info.impact then
+												 ui.text("unstable")
+											 else
+												 ui.text("")
+											 end
 											 ui.text("a")
 											 ui.sameLine()
 											 ui.text(info.a_fmt)
@@ -184,7 +210,10 @@ local function displayOrbitInfo()
 											 ui.sameLine()
 											 ui.text(info.r_peri_fmt)
 
-											 if info.e < 1 then
+											 if info.impact then
+												 ui.text("")
+												 ui.text("")
+											 elseif info.e < 1 then
 												 ui.text("ap")
 												 ui.sameLine()
 												 ui.text(info.r_apo_fmt)
