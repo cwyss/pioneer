@@ -78,15 +78,18 @@ local function getOrbitInfo(player, frameBody)
 	info.r_krit = frameBody:GetPhysicalRadius()
 	if info.r_peri <= info.r_krit then
 		info.impact = true
-		local E_imp
-		if e < 1 then
-			E_imp = 2 * math.pi - math.acos((1 - info.r_krit / a) / e)
-			local delta = Vector2(a * (math.cos(E_imp) - math.cos(E)), b * (math.sin(E_imp) - math.sin(E)))
-			info.d_imp = delta:length()
-		else
-			E_imp = - acosh((1 - info.r_krit / a) / e)
-			local delta = Vector2(a * (math.cosh(E_imp) - math.cosh(E)), b * (math.sinh(E_imp) - math.sinh(E)))
-			info.d_imp = delta:length()
+		if r >= info.r_krit then
+			local E_imp
+			if e < 1 then
+				E_imp = 2 * math.pi - math.acos((1 - info.r_krit / a) / e)
+				local delta = Vector2(a * (math.cos(E_imp) - math.cos(E)), b * (math.sin(E_imp) - math.sin(E)))
+				info.d_imp = delta:length()
+			else
+				E_imp = - acosh((1 - info.r_krit / a) / e)
+				local delta = Vector2(a * (math.cosh(E_imp) - math.cosh(E)), b * (math.sinh(E_imp) - math.sinh(E)))
+				info.d_imp = delta:length()
+			end
+			info.E_imp = E_imp
 		end
 	elseif e < 1 then
 		info.r_apo = p / (1 - e)
@@ -119,12 +122,15 @@ local function formatOrbitInfo(info)
 
 		local val,unit = ui.Format.Distance(info.a)
 		info.a_fmt = val .. " " .. unit
-		info.e_fmt = string.format("%.6f", info.e)
+		info.e_fmt = string.format("%.6g", info.e)
 		local val,unit = ui.Format.Distance(info.r_peri)
 		info.r_peri_fmt = val .. " " .. unit
 		if info.impact then
-			local val,unit = ui.Format.Distance(info.d_imp)
-			info.d_imp_fmt = val .. " " .. unit
+			if info.d_imp then
+				local val,unit = ui.Format.Distance(info.d_imp)
+				info.d_imp_fmt = val .. " " .. unit
+				info.E_imp_fmt = string.format("%.8g", info.E_imp)
+			end
 		elseif info.e < 1 then
 			local val,unit = ui.Format.Distance(info.r_apo)
 			info.r_apo_fmt = val .. " " .. unit
@@ -180,7 +186,11 @@ local function displayOrbitInfo()
 											 if info.impact then
 												 ui.text("di")
 												 ui.sameLine()
-												 ui.text(info.d_imp_fmt)
+												 if info.d_imp_fmt then
+													 ui.text(info.d_imp_fmt)
+												 else
+													 ui.text("--")
+												 end
 											 elseif info.e < 1 then
 												 ui.text("M")
 												 ui.sameLine()
@@ -212,7 +222,11 @@ local function displayOrbitInfo()
 
 											 if info.impact then
 												 ui.text("")
-												 ui.text("")
+												 if info.E_imp_fmt then
+													 ui.text(info.E_imp_fmt)
+												 else
+													 ui.text("")
+												 end
 											 elseif info.e < 1 then
 												 ui.text("ap")
 												 ui.sameLine()
