@@ -50,60 +50,56 @@ local function getOrbitInfo(player, frameBody)
 	local p = lambda * lambda / mu
 	local e = math.sqrt(1 + 2 * epsilon * p / mu)
 	local a = p / (1 - e * e)
-	local b
 
-	local E,M,T,t_peri
+	info.r = r
+	-- info.a = a
+	info.e = e
+	info.r_peri = p / (1 + e)
+
+	local E, b
 	if e < 1 then
 		E = math.acos((1 - r / a) / e)
 		if pos:dot(vel) < 0 then
 			E = 2 * math.pi - E
 		end
-		M = E + e * math.sin(E)
-		T = 2 * math.pi * math.sqrt(math.pow(a, 3) / mu)
+		info.r_apo = p / (1 - e)
+		info.M = E + e * math.sin(E)
+		info.T = 2 * math.pi * math.sqrt(math.pow(a, 3) / mu)
 		b = p / math.sqrt(1 - e * e)
 	else
 		E = acosh((1 - r / a) / e)
 		if pos:dot(vel) < 0 then
 			E = -E
 		end
-		M = e * math.sinh(E) - E
-		t_peri = math.sqrt(math.pow(-a, 3) / mu) * M
+		local M = e * math.sinh(E) - E
+		info.t_peri = math.sqrt(math.pow(-a, 3) / mu) * M
 		b = p / math.sqrt(e * e - 1)
+		info.b = b
 	end
 		
-	info.r = r
-	info.a = a
-	info.e = e
-	info.r_peri = p / (1 + e)
 	info.r_krit = frameBody:GetPhysicalRadius()
 	if info.r_peri <= info.r_krit then
-		info.impact = true
-		if r >= info.r_krit then
-			local E_imp
-			if e < 1 then
-				E_imp = 2 * math.pi - math.acos((1 - info.r_krit / a) / e)
+		if e < 1 then
+			info.impact = true
+			if r >= info.r_krit then
+				local E_imp = 2 * math.pi - math.acos((1 - info.r_krit / a) / e)
 				local delta = Vector2(a * (math.cos(E_imp) - math.cos(E)), b * (math.sin(E_imp) - math.sin(E)))
 				info.d_imp = delta:length()
-			else
-				E_imp = - acosh((1 - info.r_krit / a) / e)
+			end
+		elseif e >= 1 and E < 0 then
+			info.impact = true
+			if r >= info.r_krit then
+				local E_imp = - acosh((1 - info.r_krit / a) / e)
 				local delta = Vector2(a * (math.cosh(E_imp) - math.cosh(E)), b * (math.sinh(E_imp) - math.sinh(E)))
 				info.d_imp = delta:length()
 			end
-			info.E_imp = E_imp
 		end
-	elseif e < 1 then
-		info.r_apo = p / (1 - e)
-		info.M = M
-		info.T = T
-	else
-		info.b = b
-		info.t_peri = t_peri
 	end
 	
 	info.v1 = math.sqrt(mu / r)
-	info.v2 = math.sqrt(2) * info.v1
+	-- info.v2 = math.sqrt(2) * info.v1
 	
-	info.mass = path:GetSystemBody().mass
+	-- info.mass = path:GetSystemBody().mass
 	info.lambda = lambda
 	info.epsilon = epsilon
 	return info
@@ -113,33 +109,40 @@ local function formatOrbitInfo(info)
 	if info.name then
 		val,unit = ui.Format.Speed(info.v1)
 		info.v1_fmt = val .. " " .. unit
-		val,unit = ui.Format.Speed(info.v2)
-		info.v2_fmt = val .. " " .. unit
+		-- val,unit = ui.Format.Speed(info.v2)
+		-- info.v2_fmt = val .. " " .. unit
 		local val,unit = ui.Format.Distance(info.r_krit)
 		info.r_krit_fmt = val .. " " .. unit
 		local val,unit = ui.Format.Distance(info.r)
 		info.r_fmt = val .. " " .. unit
 
-		local val,unit = ui.Format.Distance(info.a)
-		info.a_fmt = val .. " " .. unit
+		-- local val,unit = ui.Format.Distance(info.a)
+		-- info.a_fmt = val .. " " .. unit
 		info.e_fmt = string.format("%.6g", info.e)
 		local val,unit = ui.Format.Distance(info.r_peri)
 		info.r_peri_fmt = val .. " " .. unit
+		if info.e < 1 then
+			local val,unit = ui.Format.Distance(info.r_apo)
+			info.r_apo_fmt = val .. " " .. unit
+			if not info.impact then
+				info.M_fmt = string.format("%.4f", info.M)
+				info.T_fmt = ui.Format.Duration(info.T,3)
+			end
+		else
+			local val,unit = ui.Format.Distance(info.b)
+			info.b_fmt = val .. " " .. unit
+			if not info.impact then
+				info.t_peri_fmt = ui.Format.Duration(info.t_peri,3)
+			end
+		end
 		if info.impact then
 			if info.d_imp then
 				local val,unit = ui.Format.Distance(info.d_imp)
 				info.d_imp_fmt = val .. " " .. unit
-				info.E_imp_fmt = string.format("%.8g", info.E_imp)
+				-- info.E_imp_fmt = string.format("%.8g", info.E_imp)
+			else
+				info.d_imp_fmt = "--"
 			end
-		elseif info.e < 1 then
-			local val,unit = ui.Format.Distance(info.r_apo)
-			info.r_apo_fmt = val .. " " .. unit
-			info.M_fmt = string.format("%.4f", info.M)
-			info.T_fmt = ui.Format.Duration(info.T,3)
-		else
-			local val,unit = ui.Format.Distance(info.b)
-			info.b_fmt = val .. " " .. unit
-			info.t_peri_fmt = ui.Format.Duration(info.t_peri,3)
 		end
 		info.epsilon_fmt = string.format("%.6e", info.epsilon)
 		info.lambda_fmt = string.format("%.6e", info.lambda)
@@ -170,10 +173,6 @@ local function displayOrbitInfo()
 											 ui.text("v1")
 											 ui.sameLine()
 											 ui.text(info.v1_fmt)
-											 
-											 ui.text("v2")
-											 ui.sameLine()
-											 ui.text(info.v2_fmt)
 
 											 ui.text("rk")
 											 ui.sameLine()
@@ -186,11 +185,7 @@ local function displayOrbitInfo()
 											 if info.impact then
 												 ui.text("di")
 												 ui.sameLine()
-												 if info.d_imp_fmt then
-													 ui.text(info.d_imp_fmt)
-												 else
-													 ui.text("--")
-												 end
+												 ui.text(info.d_imp_fmt)
 											 elseif info.e < 1 then
 												 ui.text("M")
 												 ui.sameLine()
@@ -203,15 +198,8 @@ local function displayOrbitInfo()
 											 ui.text(info.epsilon_fmt)
 
 											 ui.nextColumn()
-											 if info.impact then
-												 ui.text("unstable")
-											 else
-												 ui.text("")
-											 end
-											 ui.text("a")
-											 ui.sameLine()
-											 ui.text(info.a_fmt)
-
+											 ui.text("")
+											 
 											 ui.text("e")
 											 ui.sameLine()
 											 ui.text(info.e_fmt)
@@ -220,25 +208,26 @@ local function displayOrbitInfo()
 											 ui.sameLine()
 											 ui.text(info.r_peri_fmt)
 
-											 if info.impact then
-												 ui.text("")
-												 if info.E_imp_fmt then
-													 ui.text(info.E_imp_fmt)
-												 else
-													 ui.text("")
-												 end
-											 elseif info.e < 1 then
+											 if info.e < 1 then
 												 ui.text("ap")
 												 ui.sameLine()
 												 ui.text(info.r_apo_fmt)
-												 ui.text("T")
-												 ui.sameLine()
-												 ui.text(info.T_fmt)
+												 if not info.impact then
+													 ui.text("T")
+													 ui.sameLine()
+													 ui.text(info.T_fmt)
+												 else
+													 ui.text("impact")
+												 end
 											 else
 												 ui.text("b")
 												 ui.sameLine()
 												 ui.text(info.b_fmt)
-												 ui.text("")
+												 if not info.impact then
+													 ui.text("")
+												 else
+													 ui.text("impact")
+												 end
 											 end
 											 ui.text(info.lambda_fmt)
 						 end)
