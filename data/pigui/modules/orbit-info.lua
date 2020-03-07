@@ -80,7 +80,7 @@ local function getOrbitInfo(player, frameBody)
 		end
 
 		if info.r_peri <= info.r_krit then
-			if e < 1 then
+			if e < 1 and E > math.pi then
 				info.impact = true
 				if r >= info.r_krit then
 					local E_imp = 2 * math.pi - math.acos((1 - info.r_krit / a) / e)
@@ -229,7 +229,7 @@ local function displayOrbitInfo()
 														 ui.sameLine()
 														 ui.text(info.T_fmt)
 													 else
-														 ui.text("impact")
+														 ui.text("reentry")
 													 end
 												 else
 													 ui.text("b")
@@ -238,7 +238,7 @@ local function displayOrbitInfo()
 													 if not info.impact then
 														 ui.text("")
 													 else
-														 ui.text("impact")
+														 ui.text("reentry")
 													 end
 												 end
 											 end
