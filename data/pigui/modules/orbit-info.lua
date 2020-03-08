@@ -10,18 +10,15 @@ local ui = import('pigui/pigui.lua')
 -- local utils = import("utils")
 -- local Event = import("Event")
 
-local player = nil
+-- local player = nil
 local pionillium = ui.fonts.pionillium
 -- local pionicons = ui.fonts.pionicons
 local colors = ui.theme.colors
 local icons = ui.theme.icons
 
-local iconSize = Vector2(16,16)
-
+-- from planetary-info.lua
 local font = pionillium.medium
-local width = 120 + 120 * (ui.screenWidth / 1200)
-local height = font.size * 1.5 * 7
-local sepheight = math.max(iconSize.y, font.size) * 3 + 4
+local planetaryInfoHeight = math.max(16, font.size) * 3 + 4
 
 local G = 6.67428e-11
 
@@ -155,99 +152,140 @@ local function formatOrbitInfo(info)
 	end
 end
 
+local function showOrbitData(info)
+	ui.columns(2, "", false)
+	ui.text(info.name)
 
-local function displayOrbitInfo()
-	local player = Game.player
-	local current_view = Game.CurrentView()
-	if current_view == "world" then
-		local info = getOrbitInfo(player, player.frameBody)
-		if info.name == nil then
-			return
+	ui.text("v1")
+	ui.sameLine()
+	ui.text(info.v1_fmt)
+
+	ui.text("rk")
+	ui.sameLine()
+	ui.text(info.r_krit_fmt)
+
+	ui.text("r")
+	ui.sameLine()
+	ui.text(info.r_fmt)
+
+	if not info.e then
+		ui.text("")
+	elseif info.impact then
+		ui.text("di")
+		ui.sameLine()
+		ui.text(info.d_imp_fmt)
+	elseif info.e < 1 then
+		ui.text("M")
+		ui.sameLine()
+		ui.text(info.M_fmt)
+	else
+		ui.text("tp")
+		ui.sameLine()
+		ui.text(info.t_peri_fmt)
+	end
+	ui.text(info.epsilon_fmt)
+
+	ui.nextColumn()
+	ui.text("")
+
+	if not info.e then
+		ui.text("")
+		ui.text("")
+		ui.text("")
+		ui.text("")
+	else
+		ui.text("e")
+		ui.sameLine()
+		ui.text(info.e_fmt)
+
+		ui.text("pe")
+		ui.sameLine()
+		ui.text(info.r_peri_fmt)
+
+		if info.e < 1 then
+			ui.text("ap")
+			ui.sameLine()
+			ui.text(info.r_apo_fmt)
+			if not info.impact then
+				ui.text("T")
+				ui.sameLine()
+				ui.text(info.T_fmt)
+			else
+				ui.text("reentry")
+			end
+		else
+			ui.text("b")
+			ui.sameLine()
+			ui.text(info.b_fmt)
+			if not info.impact then
+				ui.text("")
+			else
+				ui.text("reentry")
+			end
 		end
-		formatOrbitInfo(info)
-		
-		ui.setNextWindowSize(Vector2(width, height), "Always")
-		ui.setNextWindowPos(Vector2(ui.screenWidth - width, ui.screenHeight - height - sepheight), "Always")
-		ui.window("OrbitInfo", {"NoTitleBar", "NoResize", "NoFocusOnAppearing", "NoBringToFrontOnFocus"},
-					 function()
-						 ui.withFont(font.name, font.size, function()
-											 ui.columns(2, "", false)
-											 ui.text(info.name)
-											 
-											 ui.text("v1")
-											 ui.sameLine()
-											 ui.text(info.v1_fmt)
+	end
+	ui.text(info.lambda_fmt)
+end
 
-											 ui.text("rk")
-											 ui.sameLine()
-											 ui.text(info.r_krit_fmt)
 
-											 ui.text("r")
-											 ui.sameLine()
-											 ui.text(info.r_fmt)
+local showWindow = false
+local useNavTarget = false
 
-											 if not info.e then
-												 ui.text("")
-											 elseif info.impact then
-												 ui.text("di")
-												 ui.sameLine()
-												 ui.text(info.d_imp_fmt)
-											 elseif info.e < 1 then
-												 ui.text("M")
-												 ui.sameLine()
-												 ui.text(info.M_fmt)
-											 else
-												 ui.text("tp")
-												 ui.sameLine()
-												 ui.text(info.t_peri_fmt)
-											 end
-											 ui.text(info.epsilon_fmt)
-
-											 ui.nextColumn()
-											 ui.text("")
-
-											 if not info.e then
-												 ui.text("")
-												 ui.text("")
-												 ui.text("")
-												 ui.text("")
-											 else
-												 ui.text("e")
-												 ui.sameLine()
-												 ui.text(info.e_fmt)
-
-												 ui.text("pe")
-												 ui.sameLine()
-												 ui.text(info.r_peri_fmt)
-
-												 if info.e < 1 then
-													 ui.text("ap")
-													 ui.sameLine()
-													 ui.text(info.r_apo_fmt)
-													 if not info.impact then
-														 ui.text("T")
-														 ui.sameLine()
-														 ui.text(info.T_fmt)
-													 else
-														 ui.text("reentry")
-													 end
-												 else
-													 ui.text("b")
-													 ui.sameLine()
-													 ui.text(info.b_fmt)
-													 if not info.impact then
-														 ui.text("")
-													 else
-														 ui.text("reentry")
-													 end
-												 end
-											 end
-											 ui.text(info.lambda_fmt)
-						 end)
-		end)
+local function showOrbitWindow()
+	local player = Game.player
+	if Game.CurrentView() == "world" then
+		local mainButtonSize = Vector2(32,32) * (ui.screenHeight / 1200)
+		local button_size = Vector2(24,24) * (ui.screenHeight / 1200)
+		local frame_padding = 1
+		local width = 120 + 120 * (ui.screenWidth / 1200)
+		local height = 16 + button_size.y + 2 * frame_padding + 7 * (font.size+1)
+		local bg_color = colors.buttonBlue
+		local fg_color = colors.white
+		if not showWindow then
+			ui.setNextWindowPos(Vector2(ui.screenWidth - 1.33 * mainButtonSize.x - 8 , ui.screenHeight - planetaryInfoHeight - 1.33 * mainButtonSize.y - 8), "Always")
+			ui.window("OrbitInfoSmall", {"NoTitleBar", "NoResize", "NoFocusOnAppearing", "NoBringToFrontOnFocus", "NoSavedSettings"},
+						 function()
+							 if ui.coloredSelectedIconButton(icons.system_map, mainButtonSize, false, 0, bg_color, fg_color, "Show orbital elements") then
+								 showWindow = true
+							 end
+			end)
+		else
+			ui.setNextWindowSize(Vector2(width, height), "Always")
+			ui.setNextWindowPos(Vector2(ui.screenWidth - width - .33 * mainButtonSize.x, ui.screenHeight - planetaryInfoHeight - height - .33 * mainButtonSize.y), "Always")
+			ui.withStyleColors({ ["WindowBg"] = colors.commsWindowBackground }, function()
+					ui.withStyleVars({ ["WindowRounding"] = 0.0 }, function()
+							ui.window("OrbitInfo", {"NoTitleBar", "NoResize", "NoFocusOnAppearing", "NoBringToFrontOnFocus"}, function()
+											 ui.withFont(font.name, font.size, function()
+																 if ui.coloredSelectedIconButton(icons.display_frame, button_size, not useNavTarget, frame_padding, bg_color, fg_color, "Show frame of reference") then
+																	 useNavTarget = false
+																 end
+																 ui.sameLine()
+																 if ui.coloredSelectedIconButton(icons.display_navtarget, button_size, useNavTarget, frame_padding, bg_color, fg_color, "Show navigational target") then
+																	 useNavTarget = true
+																 end
+																 ui.sameLine(ui.getWindowSize().x - button_size.x - 10)
+																 if ui.coloredSelectedIconButton(icons.system_map, button_size, false, frame_padding, bg_color, fg_color, "Hide orbital elements") then
+																	 showWindow = false
+																 end
+																 local body
+																 if useNavTarget then
+																	 body = player:GetNavTarget()
+																 else
+																	 body = player.frameBody
+																 end
+																 local info = getOrbitInfo(player, body)
+																 if info.name ~= nil then
+																	 formatOrbitInfo(info)
+																	 showOrbitData(info)
+																 end
+											 end)
+							end)
+					end)
+			end)
+		end
 	end
 end
 
-ui.registerModule("game", displayOrbitInfo)
+ui.registerModule("game", showOrbitWindow)
 
 return {}
