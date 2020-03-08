@@ -77,6 +77,7 @@ local function getOrbitInfo(player, frameBody)
 		end
 
 		if info.r_peri <= info.r_krit then
+			info.unstable = true
 			if e < 1 and E > math.pi then
 				info.impact = true
 				if r >= info.r_krit then
@@ -173,7 +174,7 @@ local function showOrbitData(info)
 	elseif info.impact then
 		ui.text("di")
 		ui.sameLine()
-		ui.text(info.d_imp_fmt)
+		ui.textColored(colors.alertYellow, info.d_imp_fmt)
 	elseif info.e < 1 then
 		ui.text("M")
 		ui.sameLine()
@@ -200,7 +201,11 @@ local function showOrbitData(info)
 
 		ui.text("pe")
 		ui.sameLine()
-		ui.text(info.r_peri_fmt)
+		if info.unstable then
+			ui.textColored(colors.alertYellow, info.r_peri_fmt)
+		else
+			ui.text(info.r_peri_fmt)
+		end
 
 		if info.e < 1 then
 			ui.text("ap")
@@ -211,7 +216,7 @@ local function showOrbitData(info)
 				ui.sameLine()
 				ui.text(info.T_fmt)
 			else
-				ui.text("reentry")
+				ui.textColored(colors.alertYellow, "reentry")
 			end
 		else
 			ui.text("b")
@@ -220,7 +225,7 @@ local function showOrbitData(info)
 			if not info.impact then
 				ui.text("")
 			else
-				ui.text("reentry")
+				ui.textColored(colors.alertYellow, "reentry")
 			end
 		end
 	end
