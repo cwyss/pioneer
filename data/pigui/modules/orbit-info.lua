@@ -239,6 +239,9 @@ local useNavTarget = false
 local function showOrbitWindow()
 	local player = Game.player
 	if Game.CurrentView() == "world" then
+		if Game.player:IsDocked() or Game.InHyperspace() or not Game.system.explored then
+			showWindow = false
+		end
 		local mainButtonSize = Vector2(32,32) * (ui.screenHeight / 1200)
 		local button_size = Vector2(24,24) * (ui.screenHeight / 1200)
 		local frame_padding = 1
